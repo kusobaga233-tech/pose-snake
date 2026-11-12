@@ -1,0 +1,2921 @@
+/* ============================================================
+   Pose Snake · 体感贪吃蛇
+   深色霓虹 + Q 版卡通的界面层
+   ============================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #07030e;
+  color: #e8dfff;
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+#game {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ---------------- 左上角数据面板 ---------------- */
+#hud {
+  position: fixed;
+  top: 22px;
+  left: 22px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 14px 7px;
+  min-width: 72px;
+  border-radius: 14px;
+  background: rgba(20, 10, 38, 0.62);
+  border: 1px solid rgba(160, 120, 255, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.stat .k {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: rgba(200, 180, 255, 0.55);
+  font-weight: 600;
+}
+
+.stat .v {
+  font-size: 23px;
+  font-weight: 900;
+  line-height: 1.05;
+  color: #f4eeff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(140, 200, 255, 0.35);
+}
+
+.stat .v.accent {
+  color: #ffd93d;
+  text-shadow: 0 0 18px rgba(255, 217, 61, 0.5);
+}
+
+/* ---------------- 手感调节面板 ---------------- */
+.tuning {
+  position: fixed;
+  top: 104px;
+  left: 22px;
+  width: 268px;
+  padding: 12px 14px 10px;
+  border-radius: 16px;
+  background: rgba(20, 10, 38, 0.66);
+  border: 1px solid rgba(160, 120, 255, 0.2);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+  z-index: 11;
+  transition: opacity 0.3s;
+  /* 四个滑块 + 读数在矮屏上会溢出，超限时让面板自己滚动 */
+  max-height: calc(100vh - 128px);
+  overflow-y: auto;
+}
+
+.tuning.hidden {
+  display: none;
+}
+
+.tuning-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(200, 180, 255, 0.62);
+  margin-bottom: 10px;
+}
+
+.tuning-head button {
+  padding: 3px 9px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: rgba(210, 195, 245, 0.8);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(170, 130, 255, 0.22);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tuning-head button:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 收起时只留标题栏 */
+.tuning.collapsed {
+  padding-bottom: 12px;
+}
+
+.tuning.collapsed .tuning-body {
+  display: none;
+}
+
+.tuning-body .row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "k v"
+    "s s";
+  gap: 4px 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.tuning-body .row .k {
+  grid-area: k;
+  font-size: 11.5px;
+  color: rgba(226, 216, 255, 0.82);
+  font-weight: 600;
+}
+
+.tuning-body .row .v {
+  grid-area: v;
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #b6ff57;
+  text-shadow: 0 0 12px rgba(182, 255, 87, 0.5);
+}
+
+.tuning-body input[type="range"] {
+  grid-area: s;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  cursor: pointer;
+}
+
+.tuning-body input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #d4ff7a, #6ee06a);
+  border: 2px solid rgba(12, 30, 12, 0.65);
+  box-shadow: 0 0 12px rgba(140, 240, 120, 0.6);
+  cursor: grab;
+}
+
+.tuning-body input[type="range"]::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.12);
+}
+
+.tuning-body input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #a8f06a;
+  border: 2px solid rgba(12, 30, 12, 0.65);
+  cursor: grab;
+}
+
+/* 圆心刻度尺：0 脖子 → 1 腰，让滑块上的位置有具体身体参照 */
+.center-scale {
+  display: flex;
+  justify-content: space-between;
+  margin: -6px 2px 11px;
+  font-size: 9.5px;
+  line-height: 1;
+  color: rgba(190, 170, 235, 0.58);
+  font-variant-numeric: tabular-nums;
+}
+
+.tuning-note b {
+  color: rgba(182, 255, 87, 0.82);
+  font-weight: 700;
+}
+
+/* AI 参数分组标题：把「玩家手感」和「对手强度」在视觉上分开 */
+.ai-sep {
+  margin: 12px 0 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(160, 120, 255, 0.18);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(200, 180, 255, 0.62);
+}
+
+/* 实时速度读数：让「越大越慢」这条曲线看得见 */
+.tuning-live {
+  margin: 0 0 8px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: #d9ff9e;
+  background: rgba(120, 220, 120, 0.09);
+  border: 1px solid rgba(150, 240, 130, 0.18);
+}
+
+.tuning-note {
+  margin: 2px 0 0;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: rgba(170, 155, 200, 0.5);
+}
+
+/* ---------------- 体感识别诊断 / 日志 ---------------- */
+.pose-diag {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(160, 120, 255, 0.18);
+}
+
+.pose-diag-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(200, 180, 255, 0.7);
+}
+
+.pose-state {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: rgba(220, 210, 255, 0.7);
+  background: rgba(255, 255, 255, 0.07);
+}
+.pose-state.ok   { color: #b7ff8f; background: rgba(130, 240, 130, 0.14); }
+.pose-state.warn { color: #ffd58a; background: rgba(255, 190, 90, 0.14); }
+.pose-state.bad  { color: #ff9cb8; background: rgba(255, 100, 140, 0.16); }
+
+.pose-readout {
+  margin-bottom: 8px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  white-space: pre-line;
+  font-size: 10.5px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  color: rgba(226, 220, 255, 0.88);
+  background: rgba(8, 4, 18, 0.5);
+  border: 1px solid rgba(160, 120, 255, 0.14);
+}
+
+.pose-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 7px;
+}
+.pose-row .k { font-size: 11px; color: rgba(226, 216, 255, 0.8); font-weight: 600; }
+
+.hand-btns { display: flex; gap: 4px; }
+.hand-btns button,
+.pose-btns button {
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: rgba(215, 202, 250, 0.8);
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(170, 130, 255, 0.24);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hand-btns button:hover,
+.pose-btns button:hover { color: #fff; background: rgba(255, 255, 255, 0.12); }
+.hand-btns button.on {
+  color: #0a1f10;
+  background: linear-gradient(180deg, #d4ff7a, #86f06a);
+  border-color: rgba(212, 255, 122, 0.5);
+}
+
+.pose-btns { justify-content: flex-start; }
+.log-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.8px;
+  color: rgba(226, 216, 255, 0.8);
+  cursor: pointer;
+}
+.log-check input { accent-color: #b6ff57; cursor: pointer; }
+.log-count {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(170, 155, 200, 0.65);
+}
+
+/* ---------------- 右上角状态 ---------------- */
+#statusbar {
+  position: fixed;
+  top: 26px;
+  right: 26px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(232, 223, 255, 0.8);
+  background: rgba(20, 10, 38, 0.6);
+  border: 1px solid rgba(160, 120, 255, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* 常驻「直接开玩 / 重连体感」入口
+   z-index 必须高于 #overlay(50)：启动遮罩、诊断面板、卡在准备状态时
+   都要保证玩家有一个永远看得见、点得到的进游戏按钮。 */
+#quickPlayBtn {
+  position: fixed;
+  top: 72px;
+  right: 26px;
+  z-index: 10000;
+  padding: 9px 16px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #E8DFFF;
+  background: rgba(48, 24, 88, 0.95);
+  border: 1px solid rgba(182, 255, 87, 0.45);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+#quickPlayBtn:hover {
+  background: rgba(92, 48, 155, 0.95);
+  transform: translateY(-1px);
+}
+
+#quickPlayBtn:active { transform: translateY(0); }
+
+/* 窄屏启动面板几乎占满屏幕，常驻按钮会压住规则文字。
+   面板内本来就有「先用方向键玩」，所以遮罩显示时先收起；
+   遮罩一收起（例如卡在准备状态）就恢复显示，正好用来脱困。 */
+#quickPlayBtn.compact-hidden { display: none; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #6b5f85;
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.dot.ok {
+  background: #5beaa0;
+  box-shadow: 0 0 12px rgba(91, 234, 160, 0.9);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+.dot.warn {
+  background: #ffc53d;
+  box-shadow: 0 0 12px rgba(255, 197, 61, 0.9);
+}
+
+.dot.bad {
+  background: #ff4d6e;
+  box-shadow: 0 0 12px rgba(255, 77, 110, 0.9);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ---------------- 摄像头预览 ---------------- */
+#cam {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  width: 240px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #12081f;
+  border: 1px solid rgba(160, 120, 255, 0.22);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+  transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  z-index: 10;
+  pointer-events: none;
+}
+
+#cam.live {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+#cam::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  box-shadow: inset 0 0 30px rgba(120, 60, 255, 0.25);
+  pointer-events: none;
+  z-index: 3;
+}
+
+#video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+  opacity: 0.55;
+  filter: saturate(0.7) contrast(1.05);
+}
+
+#skeleton {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  z-index: 2;
+}
+
+.cam-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 10px 7px;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  text-align: center;
+  color: rgba(210, 240, 255, 0.82);
+  background: linear-gradient(to top, rgba(8, 3, 16, 0.92), rgba(8, 3, 16, 0));
+  z-index: 4;
+}
+
+/* ---------------- 底部提示 ---------------- */
+#hint {
+  position: fixed;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  padding: 9px 20px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(200, 255, 210, 0.9);
+  background: rgba(16, 8, 30, 0.66);
+  border: 1px solid rgba(120, 255, 170, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+#hint:not(:empty) {
+  opacity: 1;
+}
+
+/* ---------------- 静音按钮 ---------------- */
+#muteBtn {
+  position: fixed;
+  right: 22px;
+  top: 68px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: rgba(232, 223, 255, 0.75);
+  background: rgba(20, 10, 38, 0.6);
+  border: 1px solid rgba(160, 120, 255, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 12;
+}
+
+#muteBtn:hover {
+  color: #fff;
+  border-color: rgba(160, 120, 255, 0.45);
+  background: rgba(40, 20, 70, 0.8);
+}
+
+#muteBtn.muted {
+  opacity: 0.42;
+}
+
+#muteBtn.muted::after {
+  content: "";
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  background: #ff5c8a;
+  transform: rotate(-45deg);
+  border-radius: 2px;
+}
+
+/* ---------------- 启动面板 ---------------- */
+#overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 45%, rgba(60, 20, 110, 0.55), rgba(5, 2, 12, 0.92) 70%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 50;
+  transition: opacity 0.4s ease, visibility 0.4s;
+}
+
+#overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  /* 关键：高度受限，内部滚动，按钮永远不会被挤出屏幕 */
+  max-height: calc(100vh - 40px);
+  padding: 32px 0 24px;
+  border-radius: 28px;
+  text-align: left;
+  background:
+    linear-gradient(160deg, rgba(46, 22, 82, 0.92), rgba(18, 8, 34, 0.96));
+  border: 1px solid rgba(170, 130, 255, 0.22);
+  box-shadow:
+    0 40px 90px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+    0 0 80px rgba(120, 60, 255, 0.14);
+  animation: panelIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+  overflow: hidden;
+}
+
+.panel-head {
+  flex: none;
+  padding: 0 40px;
+}
+
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 40px;
+  /* 滚动条留出空隙，避免内容贴边 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(170, 130, 255, 0.4) transparent;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(170, 130, 255, 0.32);
+  border-radius: 4px;
+}
+
+.panel-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-actions {
+  flex: none;
+  padding: 4px 40px 0;
+  background: linear-gradient(to top, rgba(18, 8, 34, 0.98) 60%, rgba(18, 8, 34, 0));
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+  }
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.snake-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #b6ff57;
+  box-shadow: 0 0 0 4px rgba(182, 255, 87, 0.14), 0 0 26px rgba(182, 255, 87, 0.85);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.panel h1 {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  background: linear-gradient(100deg, #b6ff57, #5befa0 45%, #35d6e0);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.panel .sub {
+  font-size: 14px;
+  color: rgba(200, 180, 255, 0.7);
+  margin-bottom: 20px;
+  letter-spacing: 0.02em;
+}
+
+.rules {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 0 0 22px;
+}
+
+.rules li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(226, 216, 255, 0.78);
+}
+
+.rules li::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: #5befa0;
+  box-shadow: 0 0 10px rgba(91, 239, 160, 0.8);
+  transform: rotate(45deg);
+}
+
+.rules b {
+  color: #d8ffb0;
+  font-weight: 700;
+}
+
+#startBtn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 16px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #0a1f10;
+  background: linear-gradient(180deg, #d4ff7a, #86f06a 60%, #4fd98a);
+  box-shadow: 0 10px 30px rgba(110, 240, 130, 0.32), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.2s ease, filter 0.2s;
+}
+
+#startBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(110, 240, 130, 0.45), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  filter: brightness(1.05);
+}
+
+#startBtn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+
+#startBtn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* 启动中按钮仍可点（点 = 取消启动），所以不能用 progress 光标 */
+#startBtn.loading {
+  cursor: pointer;
+  opacity: 0.72;
+}
+
+.panel .hint {
+  margin-top: 14px;
+  min-height: 18px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(255, 190, 120, 0.92);
+  text-align: center;
+}
+
+.fineprint {
+  margin-top: 16px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: rgba(170, 155, 200, 0.45);
+  text-align: center;
+}
+
+/* ---------------- 摄像头诊断清单 ---------------- */
+.diag {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0 0 18px;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(8, 4, 18, 0.62);
+  border: 1px solid rgba(160, 120, 255, 0.14);
+}
+
+.diag.hidden {
+  display: none;
+}
+
+.diag-row {
+  display: grid;
+  grid-template-columns: 16px 96px 1fr;
+  gap: 8px;
+  align-items: start;
+  padding: 7px 8px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.diag-row:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.diag-ico {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: #6b5f85;
+}
+
+.diag-row.ok .diag-ico {
+  background: #5beaa0;
+  box-shadow: 0 0 8px rgba(91, 234, 160, 0.85);
+}
+
+.diag-row.bad .diag-ico {
+  background: #ff4d6e;
+  box-shadow: 0 0 8px rgba(255, 77, 110, 0.85);
+}
+
+.diag-row.warn .diag-ico {
+  background: #ffc53d;
+  box-shadow: 0 0 8px rgba(255, 197, 61, 0.7);
+}
+
+.diag-label {
+  color: rgba(200, 185, 235, 0.72);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.diag-detail {
+  color: rgba(232, 223, 255, 0.88);
+  word-break: break-word;
+  font-variant-numeric: tabular-nums;
+}
+
+.diag-row.bad .diag-detail {
+  color: #ffb3c2;
+}
+
+/* 失败原因 / 修复建议 */
+.diag-block {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.diag-block li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 12.5px;
+  line-height: 1.62;
+  color: rgba(226, 216, 255, 0.74);
+}
+
+.diag-block li::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 120, 150, 0.85);
+}
+
+.diag-block.fixes li::before {
+  background: rgba(91, 239, 160, 0.9);
+  box-shadow: 0 0 8px rgba(91, 239, 160, 0.7);
+}
+
+.diag-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: rgba(255, 180, 200, 0.95);
+}
+
+.diag-title.fixes {
+  color: rgba(150, 255, 190, 0.95);
+}
+
+/* ---------------- 次要按钮 ---------------- */
+#kbBtn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(220, 210, 255, 0.9);
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(170, 130, 255, 0.28);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+#kbBtn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(170, 130, 255, 0.5);
+}
+
+#kbBtn.hidden {
+  display: none;
+}
+
+/* 诊断页里「一键跳到本地服务器」的推荐出路。
+   次级按钮的样式挂在 #kbBtn 这个 id 上，普通 class 不会继承，
+   不显式写样式就会退化成浏览器默认的白底按钮，和暗色主题很不搭。 */
+.diag-jump {
+  display: block;
+  width: 100%;
+  margin: 12px 0 6px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #d9ffb0;
+  background: rgba(182, 255, 87, 0.1);
+  border: 1px solid rgba(182, 255, 87, 0.45);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.diag-jump:hover {
+  color: #fff;
+  background: rgba(182, 255, 87, 0.18);
+  border-color: rgba(182, 255, 87, 0.7);
+}
+
+/* ---------------- 道具状态（右上角，状态栏与常驻按钮下方） ---------------- */
+.buffs {
+  position: fixed;
+  top: 118px;
+  right: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  z-index: 10;
+  pointer-events: none;
+}
+.buffs.hidden,
+.buff-chip.hidden {
+  display: none;
+}
+.buff-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 158px;
+  padding: 7px 11px 11px;
+  border-radius: 12px;
+  background: rgba(20, 10, 38, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.buff-chip.boost {
+  color: #FFE98A;
+  border-color: rgba(255, 217, 61, 0.62);
+}
+.buff-chip.magnet {
+  color: #A9E6FF;
+  border-color: rgba(91, 200, 255, 0.6);
+}
+.buff-chip .buff-name {
+  letter-spacing: 0.08em;
+}
+.buff-chip .buff-time {
+  margin-left: auto;
+  opacity: 0.92;
+}
+.buff-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 5px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.buff-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  border-radius: 2px;
+  background: currentColor;
+  transition: width 0.08s linear;
+}
+
+/* ---------------- 窄屏适配 ---------------- */
+@media (max-width: 720px) {
+  .buffs {
+    /* 窄屏的常驻按钮下移到了 102px，道具条要跟着往下让开 */
+    top: 148px;
+    right: 14px;
+  }
+  .buff-chip {
+    min-width: 132px;
+    font-size: 11px;
+  }
+  #cam {
+    width: 150px;
+    right: 14px;
+    bottom: 14px;
+  }
+  #hud {
+    top: 14px;
+    left: 14px;
+    gap: 6px;
+  }
+  .stat {
+    padding: 7px 11px 6px;
+    min-width: 62px;
+    border-radius: 11px;
+  }
+  .stat .v {
+    font-size: 19px;
+  }
+  .stat .k {
+    font-size: 9.5px;
+  }
+  #statusbar {
+    top: 16px;
+    right: 14px;
+    font-size: 11px;
+    padding: 6px 11px;
+  }
+  #muteBtn {
+    right: 14px;
+    top: 56px;
+  }
+  /* 窄屏下避开静音按钮，常驻入口依旧完整可点 */
+  #quickPlayBtn {
+    top: 102px;
+    right: 14px;
+    padding: 8px 13px;
+    font-size: 11.5px;
+  }
+  .panel {
+    padding: 24px 0 18px;
+    border-radius: 22px;
+    max-height: calc(100vh - 24px);
+  }
+  .panel-head,
+  .panel-body {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .panel-actions {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+  .panel h1 {
+    font-size: 24px;
+  }
+  .rules li {
+    font-size: 12.5px;
+  }
+  #hint {
+    bottom: 14px;
+    font-size: 11.5px;
+    max-width: 46vw;
+    margin-left: 90px;
+    text-align: center;
+  }
+  .tuning {
+    top: 84px;
+    left: 14px;
+    width: 210px;
+    padding: 10px 12px 8px;
+  }
+}
+
+/* 通用隐藏（rules / fineprint 在失败时会被收起） */
+.rules.hidden,
+.fineprint.hidden {
+  display: none;
+}
+
+/* 单局模式切换：与滑块区同款排版，但不占两行网格 */
+.round-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 8px;
+  font-size: 11.5px;
+  color: rgba(226, 216, 255, 0.82);
+  font-weight: 600;
+}
+.round-mode-row .k { flex: none; }
+.round-mode-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid rgba(160, 120, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(20, 10, 38, 0.85);
+  color: #E9FFC9;
+  font-family: inherit;
+  font-size: 11.5px;
+  outline: none;
+  cursor: pointer;
+}
+
+/* ---------------- 单局：HUD 补充 / 实时排名 / 结算 ---------------- */
+/* 积分制取消后保留但隐藏的旧统计节点（旧自动化用例仍会读它们） */
+.legacy-stat { display: none; }
+
+/* 实时排名放右侧中部：放左下会被默认展开的「手感调节」面板整块盖住，
+   右上要留给状态栏 / 快速开玩 / 道具条，右下是摄像头预览，
+   只有 right 26px、top 226px 这块是稳定空区。z-index 也要高于面板。 */
+.leaderboard {
+  position: fixed;
+  right: 26px;
+  top: 226px;
+  width: 218px;
+  padding: 10px 12px 9px;
+  border-radius: 14px;
+  background: rgba(20, 10, 38, 0.72);
+  border: 1px solid rgba(160, 120, 255, 0.22);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+  z-index: 12;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.leaderboard.hidden { display: none; }
+/* 最后 10 秒：倒计时变黄 + 呼吸，提醒「这时候死掉长度记 0」 */
+#timeLeft.last-call {
+  color: #FFD93D;
+  text-shadow: 0 0 14px rgba(255, 217, 61, 0.55);
+  animation: lb-pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes lb-pulse { from { opacity: 0.72; } to { opacity: 1; } }
+.lb-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(200, 180, 255, 0.65);
+}
+.lb-head span:last-child { color: #FFD93D; font-size: 12px; letter-spacing: 0; }
+.lb-rows { display: flex; flex-direction: column; gap: 3px; }
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  color: rgba(232, 223, 255, 0.82);
+}
+.lb-row.me { background: rgba(182, 255, 87, 0.14); color: #E9FFC9; font-weight: 800; }
+.lb-row.dim { opacity: 0.55; }
+.lb-row .lb-rank { width: 16px; text-align: right; opacity: 0.72; }
+.lb-row .lb-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.lb-row .lb-name { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.lb-row .lb-style { font-size: 10px; opacity: 0.65; margin-left: 5px; }
+.lb-row .lb-len { font-weight: 800; }
+
+/* ---------------- 结算：比高舞台的 HUD ----------------
+   舞台本体由 canvas 全屏绘制（8 条蛇向上生长 + 镜头升高）。
+   这一层只保留顶部标题条和底部 8 列成绩牌，中间整块透明，
+   列中心与 canvas 里蛇的 x 严格对齐，成绩牌就是每条蛇的「底座」。 */
+.result-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0;
+  pointer-events: none;              /* 点击穿透到画布，只有按钮可点 */
+  transition: opacity 0.35s ease, visibility 0.35s;
+}
+.result-overlay.hidden { opacity: 0; visibility: hidden; }
+.result-overlay button { pointer-events: auto; }
+
+.result-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  /* 结算页整块中间是蛇的生长区：顶部只留一条窄标题带，
+     不再做「大标题 + 副标题 + 统计」三层，蛇头才有地方往上升。 */
+  padding: 10px 22px 16px;
+  background: linear-gradient(180deg, rgba(6,2,16,0.92), rgba(6,2,16,0.42) 66%, rgba(6,2,16,0));
+}
+.result-headline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+#resultTitle { font-size: clamp(24px, 2.4vw, 34px); line-height: 1.15; margin: 0; white-space: nowrap; }
+.result-stats {
+  font-size: 12px;
+  line-height: 1.6;
+  color: rgba(226, 216, 255, 0.72);
+  margin: 0;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stage-actions { flex: none; padding-top: 4px; }
+#skipStageBtn {
+  padding: 9px 15px;
+  border-radius: 12px;
+  border: 1px solid rgba(200,190,255,0.35);
+  background: rgba(30,18,60,0.78);
+  color: #E8DFFF;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.3s ease, background 0.2s ease;
+}
+#skipStageBtn:hover { background: rgba(60,38,110,0.9); }
+
+.result-bottom {
+  padding: 12px 0 8px;
+  /* 上方 12px 渐隐、之后近乎实底：蛇身会一直延伸到底部，
+     底太透会让蛇从成绩格子里透出来，字也糊。 */
+  background: linear-gradient(180deg, rgba(5,2,13,0) 0, rgba(5,2,13,0.94) 18px, rgba(5,2,13,0.99) 100%);
+}
+.result-rows {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0;
+  /* 与画布里的 8 条蛇严格对齐：舞台让「首列蛇心 → 末列蛇心」相距屏宽 60%
+     并整体居中（见 resultStage.js 的 STAGE.laneSpan）。8 条蛇的步长是
+     span/(n-1)，而 8 个成绩格子是等宽的，所以牌子总宽取 span × n/(n-1)
+     （默认 68.57%）并居中，格子中心才会一一落在蛇身上。
+     --result-rows-w 由 main.js 按当前列数同步，窄屏时舞台会自动放宽。 */
+  width: var(--result-rows-w, 68.57%);
+  margin: 0 auto;
+  transition: opacity 0.5s ease;
+}
+.result-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 4px 6px;
+  border-top: 3px solid var(--lane, #B6FF57);
+  border-right: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.result-row.me {
+  background: rgba(182, 255, 87, 0.15);
+  box-shadow: 0 0 24px rgba(182, 255, 87, 0.18) inset;
+}
+.result-row .r-rank { font-weight: 900; color: #FFD93D; font-size: 14px; }
+.result-row .r-dot { display: none; }   /* 顶部色条已经承担颜色标识 */
+.result-row .r-name { font-weight: 700; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* 真人玩家：名字旁边挂一张结算瞬间裁的头部特写（摄像头截图，镜像）
+   头像不额外占行：名字行改成 flex，8 格高度仍然完全一致 */
+.result-row.has-avatar .r-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  overflow: visible;
+}
+.result-row .r-avatar {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--lane, #B6FF57);
+  box-shadow: 0 0 14px rgba(182, 255, 87, .3);
+  background: #0a1420;
+}
+.result-row .r-len { font-weight: 900; font-size: 16px; }
+/* 细节行只出现在玩家自己那一格（AI 的吞并/死亡对玩家没有决策价值），
+   并且内联在节数后面，不额外占一行 */
+.result-row .r-extra {
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 600;
+  opacity: 0.5;
+  margin-left: 4px;
+}
+.result-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 22px 0;
+  transition: opacity 0.5s ease;
+}
+.result-actions .hint { font-size: 12px; color: rgba(226,216,255,0.6); }
+#againBtn {
+  width: min(280px, 46vw);
+  padding: 13px;
+  border: none;
+  border-radius: 16px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #0a1f10;
+  background: linear-gradient(180deg, #d4ff7a, #86f06a 60%, #4fd98a);
+  box-shadow: 0 10px 30px rgba(110, 240, 130, 0.32), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+  cursor: pointer;
+}
+#againBtn:hover { filter: brightness(1.06); }
+/* 生长演出期间禁用：按钮半灰、去掉发光，配合「蛇还在长…」文案 */
+#againBtn:disabled {
+  filter: grayscale(0.55);
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+}
+
+/* 生长演出期间先收起标题与统计，但保留副标题当「比高」说明；
+   定格后由 ResultStage.onSettled 移除 class，标题淡入。 */
+#resultTitle, .result-stats { transition: opacity 0.5s ease; }
+.result-overlay.stage-growing #resultTitle,
+.result-overlay.stage-growing .result-stats { opacity: 0; }
+.result-overlay.stage-growing .result-rows { opacity: 0.42; }
+/* 生长中各条蛇头顶已经标着「实时节数」，底部牌这时只留名次与名字：
+   最终长度等定格再一起亮出来，避免同一屏出现两套互相打脸的数字。 */
+.result-row .r-len { transition: opacity 0.4s ease; }
+.result-overlay.stage-growing .result-row .r-len { opacity: 0; }
+.result-overlay.stage-growing .result-actions { opacity: 0.6; }
+.result-overlay:not(.stage-growing) #skipStageBtn { opacity: 0; pointer-events: none; }
+
+/* 结算时收起局内 HUD / 调节面板，别盖住比高的蛇 */
+body.result-mode #hud,
+body.result-mode #buffs,
+body.result-mode #statusbar,
+body.result-mode #cam,
+body.result-mode #hint,
+body.result-mode #tuning,
+body.result-mode #quickPlayBtn,
+body.result-mode #muteBtn,
+body.result-mode #diag {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  .leaderboard { right: 12px; top: 206px; width: 168px; padding: 8px 9px; }
+  .lb-row { font-size: 11px; }
+  .lb-row .lb-style { display: none; }
+  .result-row { font-size: 10px; padding: 7px 2px; }
+  .result-row .r-extra,
+  .result-stats { display: none; }
+  .result-actions { flex-direction: column; gap: 6px; }
+  #againBtn { width: min(240px, 80vw); }
+}
+
+/* ============================================================
+   电视主机 / 大屏竞技主题层（TV CONSOLE SKIN）
+   ------------------------------------------------------------
+   这是最终主题层：只覆盖界面层（HUD / 菜单 / 按钮 / 提示 / 结算 /
+   屏幕装饰），不碰 canvas 里 Q 版卡通的蛇与食物画法。
+   设计取向：大屏安全区、深色实底、电光青系统色、荧光绿玩家色、
+   硬朗切角、超粗字重、键位键帽、OSD 取景框与扫描线。
+   ============================================================ */
+:root {
+  --safe: clamp(18px, 2.4vw, 44px);      /* 电视安全区：所有常驻控件都从这里起算 */
+  --tv-ink: #050912;
+  --tv-panel: rgba(7, 15, 28, 0.94);
+  --tv-deep: #060c18;
+  --tv-line: rgba(86, 232, 255, 0.34);
+  --tv-line-soft: rgba(86, 232, 255, 0.15);
+  --tv-cyan: #56e8ff;                    /* 系统 / 界面主色 */
+  --tv-lime: #b6ff57;                    /* 玩家主色，沿用局内蛇身绿 */
+  --tv-gold: #ffd54a;
+  --tv-text: #eaf6ff;
+  --tv-dim: rgba(190, 214, 238, 0.62);
+}
+
+html, body {
+  background: #050912;
+  color: var(--tv-text);
+  letter-spacing: 0.02em;
+}
+
+/* ---- 电视 OSD：扫描线 + 暗角 + 四角取景框（纯装饰，不拦点击） ---- */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 38;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(160, 220, 255, 0.022) 0 1px, transparent 1px 4px),
+    radial-gradient(ellipse at 50% 48%, transparent 46%, rgba(1, 3, 9, 0.62) 100%);
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: var(--safe);
+  z-index: 39;
+  pointer-events: none;
+  opacity: 0.55;
+  background:
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) left top / 30px 2px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) left top / 2px 30px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) right top / 30px 2px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) right top / 2px 30px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) left bottom / 30px 2px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) left bottom / 2px 30px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) right bottom / 30px 2px no-repeat,
+    linear-gradient(var(--tv-cyan), var(--tv-cyan)) right bottom / 2px 30px no-repeat;
+}
+
+/* ---- 键位键帽：主机菜单最常用的 UE 元素 ---- */
+.keycap {
+  display: inline-grid;
+  place-items: center;
+  min-width: 21px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-style: normal;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  color: #04101c;
+  background: linear-gradient(180deg, #e2faff, #8ad8ee);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.6), 0 0 12px rgba(86, 232, 255, 0.38);
+  vertical-align: middle;
+}
+.keycap-sm { min-width: 18px; height: 18px; font-size: 9px; }
+[data-key]::before {
+  content: attr(data-key);
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: #04101c;
+  background: linear-gradient(180deg, #e2faff, #8ad8ee);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 12px rgba(86, 232, 255, 0.3);
+}
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--tv-cyan);
+  outline-offset: 3px;
+  box-shadow: 0 0 22px rgba(86, 232, 255, 0.45);
+}
+
+/* ---- HUD：合并成一整条分段式计分板 ---- */
+#hud {
+  top: var(--safe);
+  left: var(--safe);
+  gap: 0;
+  align-items: stretch;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--tv-line);
+  border-left: 4px solid var(--tv-lime);
+  background: linear-gradient(100deg, rgba(6, 14, 26, 0.97), rgba(9, 20, 34, 0.88));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.62), 0 0 26px rgba(86, 232, 255, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#hud .stat {
+  position: relative;
+  min-width: 94px;
+  padding: 8px 17px 9px;
+  border: 0;
+  border-right: 1px solid var(--tv-line-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#hud .stat:nth-of-type(5) { border-right: 0; }
+#hud .stat::after {
+  content: attr(data-en);
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: rgba(86, 232, 255, 0.42);
+}
+#hud .stat .k {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--tv-dim);
+}
+#hud .stat .v {
+  font-size: 30px;
+  font-weight: 900;
+  color: #f2fbff;
+  text-shadow: 0 0 20px rgba(86, 232, 255, 0.34);
+}
+#hud .stat .v.accent {
+  color: var(--tv-gold);
+  text-shadow: 0 0 22px rgba(255, 213, 74, 0.55);
+}
+#timeLeft.last-call { color: #ff7a5c; text-shadow: 0 0 20px rgba(255, 100, 70, 0.7); }
+
+/* ---- 设置 / 调试：默认一颗 OPTIONS 胶囊，展开是硬朗的设置抽屉 ---- */
+#tuning {
+  top: calc(var(--safe) + 94px);
+  left: var(--safe);
+  width: 312px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--tv-line);
+  border-left: 3px solid var(--tv-cyan);
+  background: linear-gradient(155deg, rgba(8, 17, 31, 0.98), rgba(5, 11, 22, 0.98));
+  box-shadow: 0 20px 52px rgba(0, 0, 0, 0.7), 0 0 30px rgba(86, 232, 255, 0.1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  max-height: calc(100vh - var(--safe) - 112px);
+  transition: none;
+}
+#tuning.collapsed {
+  width: auto;
+  overflow: visible;
+  border-left: 3px solid var(--tv-lime);
+  background: rgba(6, 14, 26, 0.95);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  max-height: none;
+}
+#tuning .tuning-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 11px 13px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--tv-text);
+  background: linear-gradient(90deg, rgba(86, 232, 255, 0.13), transparent);
+  border-bottom: 1px solid var(--tv-line-soft);
+}
+#tuning.collapsed .tuning-head { background: transparent; border-bottom: 0; }
+#tuning .tuning-head:hover { background: rgba(86, 232, 255, 0.14); }
+#tuning .tuning-title { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+#tuning .tuning-mark { color: var(--tv-cyan); text-shadow: 0 0 12px var(--tv-cyan); font-size: 10px; }
+#tuning .tuning-head .keycap { flex: none; }
+#tuning .tuning-head button {
+  margin-left: auto;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #04101c;
+  background: linear-gradient(180deg, #e2faff, #8ad8ee);
+}
+#tuning .tuning-head button:hover { filter: brightness(1.12); color: #04101c; background: linear-gradient(180deg, #e2faff, #8ad8ee); }
+#tuning .tuning-body { padding: 14px 14px 16px; }
+#tuning .tuning-body .row .k { color: rgba(224, 242, 255, 0.88); font-size: 11.5px; font-weight: 700; }
+#tuning .tuning-body .row .v { color: var(--tv-cyan); text-shadow: 0 0 12px rgba(86, 232, 255, 0.55); }
+#tuning input[type="range"] {
+  height: 6px;
+  border-radius: 0;
+  background: rgba(86, 232, 255, 0.15);
+  border-top: 1px solid rgba(86, 232, 255, 0.22);
+}
+#tuning input[type="range"]::-webkit-slider-thumb {
+  width: 14px;
+  height: 18px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #e8fcff, #56e8ff);
+  border: 1px solid #0a1c2c;
+  box-shadow: 0 0 14px rgba(86, 232, 255, 0.7);
+}
+#tuning input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 16px;
+  border-radius: 2px;
+  background: #56e8ff;
+  border: 1px solid #0a1c2c;
+}
+#tuning .ai-sep {
+  margin: 14px 0 10px;
+  padding: 9px 0 0 10px;
+  border-top: 1px solid var(--tv-line);
+  border-left: 3px solid var(--tv-lime);
+  color: var(--tv-cyan);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+}
+#tuning .tuning-live {
+  border-radius: 3px;
+  color: #bff4ff;
+  background: rgba(86, 232, 255, 0.09);
+  border: 1px solid var(--tv-line-soft);
+  border-left: 3px solid var(--tv-cyan);
+  text-align: left;
+}
+#tuning .tuning-note { color: rgba(170, 200, 224, 0.58); }
+#tuning .tuning-note b { color: var(--tv-lime); }
+#tuning .round-mode-row select {
+  border-radius: 3px;
+  border: 1px solid var(--tv-line);
+  background: #071426;
+  color: var(--tv-cyan);
+}
+#tuning .center-scale { color: rgba(150, 200, 225, 0.6); }
+#tuning .pose-diag { border-top: 1px solid var(--tv-line); }
+#tuning .pose-diag-head { color: var(--tv-cyan); }
+#tuning .pose-readout { background: rgba(2, 8, 18, 0.7); border-color: var(--tv-line-soft); }
+#tuning .hand-btns button,
+#tuning .pose-btns button { border-radius: 3px; border-color: var(--tv-line); color: #d5ecf7; background: rgba(86, 232, 255, 0.06); }
+#tuning .hand-btns button.on { color: #04101c; background: linear-gradient(180deg, #d9ff7a, #86f06a); border-color: rgba(182, 255, 87, 0.6); }
+#tuning .log-check input { accent-color: var(--tv-cyan); }
+
+/* ---- 右上状态 / 直接开玩 / 静音 ---- */
+#statusbar {
+  top: var(--safe);
+  right: var(--safe);
+  padding: 9px 16px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line);
+  border-right: 3px solid var(--tv-cyan);
+  background: rgba(6, 14, 26, 0.94);
+  color: #d9eefb;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#quickPlayBtn {
+  top: calc(var(--safe) + 50px);
+  right: var(--safe);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 8px 15px;
+  border-radius: 3px;
+  border: 1px solid rgba(182, 255, 87, 0.7);
+  border-right: 3px solid var(--tv-lime);
+  background: linear-gradient(100deg, rgba(9, 26, 32, 0.97), rgba(14, 38, 30, 0.97));
+  color: #e9ffd0;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 20px rgba(182, 255, 87, 0.12);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#quickPlayBtn:hover { background: linear-gradient(100deg, rgba(18, 48, 44, 0.98), rgba(24, 62, 40, 0.98)); }
+#muteBtn {
+  top: calc(var(--safe) + 50px);
+  right: calc(var(--safe) + 210px);
+  width: 36px;
+  height: 36px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line);
+  background: rgba(6, 14, 26, 0.9);
+  color: var(--tv-cyan);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#muteBtn:hover { border-color: var(--tv-cyan); background: rgba(10, 30, 48, 0.95); }
+
+/* ---- 道具状态：主机式能量槽 ---- */
+.buffs { top: calc(var(--safe) + 100px); right: var(--safe); gap: 8px; }
+.buff-chip {
+  min-width: 176px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line-soft);
+  border-right: 3px solid currentColor;
+  background: rgba(6, 14, 26, 0.95);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.08em;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.buff-chip.boost { color: var(--tv-gold); border-color: rgba(255, 213, 74, 0.55); }
+.buff-chip.magnet { color: var(--tv-cyan); border-color: rgba(86, 232, 255, 0.55); }
+.buff-bar { height: 4px; bottom: 5px; border-radius: 0; background: rgba(255, 255, 255, 0.12); }
+
+/* ---- 实时排名：右侧竞技计分板 ---- */
+.leaderboard {
+  top: calc(var(--safe) + 204px);
+  right: var(--safe);
+  width: 226px;
+  padding: 11px 12px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line);
+  border-top: 3px solid var(--tv-cyan);
+  background: rgba(6, 14, 26, 0.95);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.lb-head { color: var(--tv-cyan); font-size: 10px; letter-spacing: 0.18em; }
+.lb-head span:last-child { color: var(--tv-gold); }
+.lb-row { border-radius: 2px; color: #dceaf5; }
+.lb-row.me { background: rgba(182, 255, 87, 0.16); color: #eaffd2; border-left: 3px solid var(--tv-lime); }
+.lb-row .lb-rank { color: var(--tv-gold); font-weight: 900; }
+
+/* ---- 底部提示 + 常驻按键条 ---- */
+#hint {
+  bottom: calc(var(--safe) + 8px);
+  padding: 10px 22px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line-soft);
+  border-left: 3px solid var(--tv-lime);
+  background: rgba(6, 14, 26, 0.93);
+  color: #dcffe0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.pad-bar {
+  position: fixed;
+  /* 画布里的小地图固定占左下 x=16~236，按键条从它右边起步，
+     形成一条底部工具带；直接贴左边会把小地图整块压住。 */
+  left: calc(var(--safe) + 230px);
+  bottom: var(--safe);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line-soft);
+  border-left: 3px solid var(--tv-cyan);
+  background: rgba(6, 14, 26, 0.86);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  color: rgba(214, 236, 250, 0.8);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.pad-bar span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+body.result-mode #padBar { opacity: 0; }
+
+/* ---- 摄像头预览：监视器 / LIVE 角标 ---- */
+#cam {
+  right: var(--safe);
+  bottom: var(--safe);
+  width: 248px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line);
+  border-top: 3px solid var(--tv-cyan);
+  background: #060c18;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.62), 0 0 24px rgba(86, 232, 255, 0.12);
+}
+#cam::before { border-radius: 3px; box-shadow: inset 0 0 34px rgba(86, 232, 255, 0.2); }
+#video { opacity: 0.62; filter: saturate(0.72) contrast(1.12); }
+.cam-label { color: #cdeeff; letter-spacing: 0.1em; font-weight: 700; }
+.cam-rec {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border-radius: 2px;
+  background: rgba(4, 10, 20, 0.78);
+  border: 1px solid rgba(255, 90, 110, 0.5);
+  color: #ff9cae;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+.cam-rec i { width: 6px; height: 6px; border-radius: 50%; background: #ff4d6e; box-shadow: 0 0 8px #ff4d6e; animation: pulse 1.6s ease-in-out infinite; }
+
+/* ---- 启动菜单：主机主菜单版式 ---- */
+#overlay {
+  padding: var(--safe);
+  background:
+    linear-gradient(0deg, rgba(86, 232, 255, 0.045) 1px, transparent 1px) 0 0 / 100% 46px,
+    linear-gradient(90deg, rgba(86, 232, 255, 0.045) 1px, transparent 1px) 0 0 / 46px 100%,
+    radial-gradient(ellipse at 50% 40%, rgba(12, 34, 62, 0.86), rgba(3, 6, 14, 0.97) 72%);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+#overlay .panel {
+  width: min(860px, 100%);
+  max-height: calc(100vh - var(--safe) * 2);
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid var(--tv-line);
+  border-top: 4px solid var(--tv-lime);
+  background: linear-gradient(155deg, rgba(9, 20, 36, 0.98), rgba(5, 10, 20, 0.99));
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8), 0 0 60px rgba(86, 232, 255, 0.12);
+  animation: panelIn 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+/* 标题画面的「标题区」：原 panel-head 的 padding 迁到这里 */
+.title-hero { flex: none; padding: 20px 32px 14px; text-align: center; }
+/* 品牌条在标题画面里居中，不再左右顶到边 */
+.title-hero .brand-line { justify-content: center; gap: 10px; margin-bottom: 10px; }
+.brand-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--tv-line-soft);
+}
+.brand-tag {
+  padding: 4px 10px;
+  border-radius: 2px;
+  background: var(--tv-lime);
+  color: #06210c;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.24em;
+  box-shadow: 0 0 20px rgba(182, 255, 87, 0.35);
+}
+.brand-ver { color: rgba(150, 205, 230, 0.6); font-size: 10px; font-weight: 800; letter-spacing: 0.2em; }
+#overlay .panel h1 {
+  font-size: clamp(34px, 4vw, 56px);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  background: linear-gradient(100deg, #eaffd0, var(--tv-lime) 40%, var(--tv-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+#overlay .snake-dot { width: 18px; height: 18px; border-radius: 3px; background: var(--tv-lime); box-shadow: 0 0 0 4px rgba(182, 255, 87, 0.14), 0 0 28px rgba(182, 255, 87, 0.85); }
+#overlay .panel .sub { margin: 4px 0 14px; font-size: 13.5px; letter-spacing: 0.12em; color: rgba(190, 224, 242, 0.78); }
+.mode-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.mode-badges span {
+  padding: 6px 12px;
+  border-radius: 2px;
+  border: 1px solid var(--tv-line-soft);
+  border-left: 3px solid var(--tv-cyan);
+  background: rgba(86, 232, 255, 0.07);
+  color: rgba(206, 234, 250, 0.8);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.mode-badges b { color: var(--tv-lime); font-weight: 900; margin-right: 5px; }
+
+/* ---- 独立标题画面 ---- */
+/* 一屏只回答两个问题：「这是什么」和「几个人玩」。其余全收进折叠区。 */
+#overlay .panel.title-screen {
+  width: min(780px, 100%);
+  /* 折叠区展开后可能超过一屏：允许整块面板滚动，按钮不会被裁掉 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(86, 232, 255, .38) transparent;
+}
+#overlay .panel.title-screen::-webkit-scrollbar { width: 8px; }
+#overlay .panel.title-screen::-webkit-scrollbar-thumb { background: rgba(86, 232, 255, .32); border-radius: 4px; }
+.title-hero .logo { justify-content: center; }
+#overlay .panel.title-screen h1 {
+  /* 标题画面比诊断页更需要「一进来看见名字」 */
+  font-size: clamp(34px, 4.6vw, 58px);
+  letter-spacing: 0.04em;
+  line-height: 1.06;
+}
+.title-sub {
+  margin: 8px 0 10px !important;
+  font-size: 13px !important;
+  letter-spacing: 0.22em !important;
+  color: rgba(196, 228, 244, .82) !important;
+}
+.title-hero .mode-badges { justify-content: center; }
+
+/* 人数选择：两个大按钮，选中态用青绿描边 + 内发光，远看也能分辨 */
+.player-select { flex: none; padding: 12px 32px 0; }
+.ps-label {
+  margin-bottom: 9px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.26em;
+  color: rgba(150, 205, 230, .7);
+}
+.ps-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ps-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 13px 10px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line-soft);
+  border-bottom: 3px solid rgba(86, 232, 255, .28);
+  background: linear-gradient(180deg, rgba(20, 48, 70, .55), rgba(9, 24, 40, .8));
+  color: rgba(214, 236, 250, .84);
+  cursor: pointer;
+  transition: transform .12s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.ps-btn b { font-size: 19px; font-weight: 900; letter-spacing: .08em; }
+.ps-btn span { font-size: 11.5px; letter-spacing: .06em; color: rgba(160, 196, 218, .68); }
+.ps-btn:hover { transform: translateY(-1px); border-color: rgba(86, 232, 255, .55); color: #eafaff; }
+.ps-btn:focus-visible { outline: 2px solid var(--tv-cyan); outline-offset: 2px; }
+.ps-btn.active {
+  border-color: rgba(182, 255, 87, .68);
+  border-bottom-color: #5fbf3a;
+  background: linear-gradient(180deg, rgba(110, 240, 130, .17), rgba(9, 24, 40, .82));
+  box-shadow: inset 0 0 26px rgba(110, 240, 130, .14), 0 0 20px rgba(110, 240, 130, .12);
+  color: #ecffd6;
+}
+.ps-btn.active b { color: var(--tv-lime); }
+.ps-btn.active span { color: rgba(210, 240, 220, .86); }
+
+/* 玩法说明折叠区：summary 一行，点开才占篇幅 */
+.rules-details { flex: none; margin: 6px 32px 0; border-top: 1px solid var(--tv-line-soft); }
+.rules-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 2px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  color: rgba(190, 224, 242, .7);
+  cursor: pointer;
+  list-style: none;
+  transition: color .18s ease;
+}
+.rules-details > summary::-webkit-details-marker { display: none; }
+.rules-details > summary::before {
+  content: '';
+  width: 0; height: 0;
+  border-left: 6px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  transition: transform .18s ease;
+}
+.rules-details[open] > summary::before { transform: rotate(90deg); }
+.rules-details > summary:hover { color: var(--tv-cyan); }
+.rules-details[open] > summary { color: var(--tv-cyan); }
+/* 折叠区内的规则列表贴着面板内边距，不再叠一层 padding */
+#overlay .rules-details .panel-body { padding: 0 0 10px; }
+
+/* 标题画面的底部区更紧凑：一屏（约 600px 高的预览窗）也能看到开始按钮 */
+#overlay .panel.title-screen .panel-actions { padding: 12px 32px 16px; gap: 7px; }
+#overlay .panel.title-screen .menu-buttons { gap: 10px; }
+#overlay .panel.title-screen #startBtn,
+#overlay .panel.title-screen #kbBtn { padding: 13px 12px; font-size: 14px; }
+#overlay .panel.title-screen .fineprint { font-size: 10.5px; line-height: 1.5; }
+#overlay .panel.title-screen .pad-hints { padding-top: 8px; font-size: 10px; }
+
+#overlay .panel-body { padding: 4px 36px 8px; }
+#overlay .rules {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin-bottom: 14px;
+}
+/* 摄像头诊断页会收起规则列表；主题层的 grid 优先级更高，必须显式让位 */
+#overlay .rules.hidden { display: none; }
+#overlay .rules li {
+  padding: 9px 12px 9px 24px;
+  border-radius: 2px;
+  border: 1px solid rgba(86, 232, 255, 0.1);
+  background: rgba(86, 232, 255, 0.035);
+  font-size: 12px;
+  line-height: 1.55;
+  color: rgba(214, 234, 248, 0.82);
+}
+#overlay .rules li::before { left: 10px; top: 13px; width: 6px; height: 6px; border-radius: 1px; background: var(--tv-cyan); box-shadow: 0 0 10px var(--tv-cyan); transform: rotate(45deg); }
+#overlay .rules b { color: var(--tv-lime); }
+#overlay .panel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px 36px 22px;
+  background: linear-gradient(0deg, rgba(5, 10, 20, 0.99) 60%, rgba(5, 10, 20, 0));
+}
+.menu-buttons { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
+#startBtn, #kbBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 15px 14px;
+  border-radius: 3px;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  transition: transform 0.12s ease, filter 0.18s ease, box-shadow 0.18s ease;
+}
+#startBtn {
+  border: 1px solid rgba(182, 255, 87, 0.7);
+  border-bottom: 3px solid #5fbf3a;
+  color: #07200c;
+  background: linear-gradient(180deg, #d9ff7a, #86f06a 60%, #4fd98a);
+  box-shadow: 0 0 30px rgba(110, 240, 130, 0.2), 0 8px 0 rgba(20, 70, 30, 0.55);
+}
+#startBtn::before { color: #07200c; background: rgba(7, 32, 12, 0.16); border-color: rgba(7, 32, 12, 0.4); box-shadow: none; }
+#startBtn:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.07); box-shadow: 0 0 38px rgba(110, 240, 130, 0.35), 0 10px 0 rgba(20, 70, 30, 0.55); }
+#kbBtn {
+  border: 1px solid var(--tv-line);
+  border-bottom: 3px solid rgba(86, 232, 255, 0.45);
+  color: #d8f4ff;
+  background: linear-gradient(180deg, rgba(20, 48, 70, 0.9), rgba(9, 24, 40, 0.95));
+  box-shadow: 0 8px 0 rgba(4, 14, 26, 0.7);
+}
+#kbBtn::before { color: #04101c; background: linear-gradient(180deg, #e2faff, #8ad8ee); }
+#kbBtn:hover { color: #fff; border-color: var(--tv-cyan); background: linear-gradient(180deg, rgba(28, 66, 92, 0.95), rgba(12, 32, 52, 0.98)); }
+#overlay .panel .hint { margin-top: 4px; min-height: 18px; font-size: 12px; color: var(--tv-gold); }
+#overlay .fineprint { margin-top: 2px; font-size: 11px; color: rgba(160, 196, 218, 0.5); }
+.pad-hints {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tv-line-soft);
+  color: rgba(190, 220, 238, 0.7);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+#overlay .diag { border-radius: 3px; border: 1px solid var(--tv-line-soft); background: rgba(2, 8, 18, 0.72); }
+#overlay .diag-row { border-radius: 2px; }
+#overlay .diag-jump { border-radius: 3px; }
+
+/* ---- 结算：比高舞台的主机式成绩条 ---- */
+.result-top {
+  /* 压成一条窄带：中间整块留给蛇往上升 */
+  padding: 6px 24px 10px;
+  /* 只给标题区铺深色底，70px 之后完全透明：铺满整行的渐变会把升上来的
+     蛇头压黑，现在右上角也没有读数需要让位了。 */
+  background: linear-gradient(180deg, rgba(4, 9, 18, 0.86) 0, rgba(4, 9, 18, 0.46) 44px, rgba(4, 9, 18, 0) 70px);
+  background-repeat: no-repeat;
+}
+#resultTitle {
+  font-size: clamp(28px, 3.4vw, 48px);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  color: #f4fbff;
+  text-shadow: 0 0 30px rgba(86, 232, 255, 0.35);
+}
+.result-top .sub { color: rgba(190, 224, 242, 0.8); letter-spacing: 0.08em; font-weight: 700; }
+.result-stats { color: rgba(196, 224, 242, 0.78); font-weight: 700; letter-spacing: 0.04em; }
+#skipStageBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border-radius: 3px;
+  border: 1px solid var(--tv-line);
+  border-bottom: 3px solid rgba(86, 232, 255, 0.4);
+  background: rgba(8, 20, 36, 0.92);
+  color: #dff6ff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+#skipStageBtn::before { background: linear-gradient(180deg, #e2faff, #8ad8ee); color: #04101c; }
+#skipStageBtn:hover { background: rgba(16, 40, 64, 0.96); border-color: var(--tv-cyan); }
+.result-bottom { background: linear-gradient(180deg, rgba(4, 9, 18, 0) 0, rgba(4, 9, 18, 0.95) 12px, rgba(4, 9, 18, 0.99) 100%); }
+.result-actions { padding: 10px 22px 0; }
+.result-row {
+  border-top: 4px solid var(--lane, var(--tv-lime));
+  border-right: 1px solid rgba(86, 232, 255, 0.12);
+  background: rgba(86, 232, 255, 0.045);
+  color: #dcecf7;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.result-row.me { background: rgba(182, 255, 87, 0.16); box-shadow: 0 0 28px rgba(182, 255, 87, 0.2) inset; border-top-color: var(--tv-lime); }
+.result-row .r-rank { color: var(--tv-gold); font-size: 15px; }
+.result-row .r-len { font-size: 19px; color: #f2fbff; text-shadow: 0 0 16px rgba(86, 232, 255, 0.4); }
+.result-actions .hint { color: rgba(190, 220, 238, 0.7); font-weight: 700; letter-spacing: 0.06em; }
+#againBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border-radius: 3px;
+  border: 1px solid rgba(182, 255, 87, 0.7);
+  border-bottom: 4px solid #5fbf3a;
+  font-size: 16px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 30px rgba(110, 240, 130, 0.2), 0 8px 0 rgba(20, 70, 30, 0.5);
+}
+#againBtn::before { color: #07200c; background: rgba(7, 32, 12, 0.16); border-color: rgba(7, 32, 12, 0.4); box-shadow: none; }
+#againBtn:hover { filter: brightness(1.08); }
+body.result-mode #padBar { opacity: 0; }
+
+/* ---- 中等宽度：底部提示上移，避开常驻按键条 ---- */
+@media (max-width: 1400px) {
+  .pad-bar span:nth-child(n + 4) { display: none; }
+  #hint { bottom: calc(var(--safe) + 58px); }
+}
+
+/* ---- 窄屏 / 小电视：切回单列，保证按钮永远在视口内 ---- */
+@media (max-width: 900px) {
+  #overlay .rules { grid-template-columns: 1fr; gap: 6px; }
+  #overlay .rules li { padding-top: 6px; padding-bottom: 6px; line-height: 1.45; }
+  .menu-buttons { grid-template-columns: 1fr; }
+  /* 窄屏横向空间不够，按键条改放到小地图上方 */
+  .pad-bar { left: var(--safe); bottom: calc(var(--safe) + 162px); }
+  .pad-bar span:nth-child(n + 4) { display: none; }
+  #muteBtn { right: var(--safe); top: calc(var(--safe) + 104px); }
+  .mode-badges span:nth-child(n + 3) { display: none; }
+  /* 小屏把细则收起，把高度让给规则列表（textContent 仍在，不影响回归） */
+  #overlay .fineprint { display: none; }
+  #overlay .panel-actions { padding-top: 10px; }
+}
+@media (max-width: 720px) {
+  #hud { top: 12px; left: 12px; }
+  #hud .stat { min-width: 62px; padding: 7px 11px 6px; }
+  #hud .stat .v { font-size: 20px; }
+  #hud .stat::after { display: none; }
+  #statusbar { top: 12px; right: 12px; font-size: 10px; padding: 6px 10px; }
+  #muteBtn { right: 12px; top: 52px; }
+  #quickPlayBtn { top: 96px; right: 12px; padding: 7px 12px; font-size: 11px; }
+  .buffs { top: 142px; right: 12px; }
+  .leaderboard { top: 196px; right: 12px; width: 168px; }
+  #cam { width: 150px; right: 12px; bottom: 12px; }
+  #tuning { top: 84px; left: 12px; width: 232px; }
+  #tuning .tuning-body { padding: 11px; }
+  #overlay .panel { width: 100%; }
+  #overlay .panel-head { padding: 18px 20px 12px; }
+  #overlay .panel-body { padding: 2px 20px 6px; }
+  #overlay .panel-actions { padding: 12px 20px 16px; }
+  #overlay .panel h1 { font-size: 30px; }
+  .pad-hints { font-size: 10px; }
+  /* 手机宽度下小地图已经占满左下，按键提示让位给游戏画面 */
+  .pad-bar { display: none; }
+  #hint { bottom: 12px; font-size: 11px; max-width: 46vw; margin-left: 90px; }
+}
+
+/* ============================================================
+   ARENA LAYOUT · 3 米电视分区界面
+   界面带（UI）与战场带（纯画布）物理分离；字号按 3 米 / 75 寸放大；
+   局内只显示倒计时、我的名次、镜像框，其余收进 O 键暂停层。
+   本层追加在 TV CONSOLE SKIN 之后，用更高特异性覆盖旧浮层定位。
+   ============================================================ */
+:root {
+  --ui-scale: 1;
+  --ui-h: calc(200px * var(--ui-scale));
+  --ui-cam-w: calc(320px * var(--ui-scale));
+  --ui-side: calc(340px * var(--ui-scale));
+  --ui-rank-w: calc(300px * var(--ui-scale));
+  --arena-safe-x: calc(90px * var(--ui-scale));
+}
+
+/* 战场带：唯一承载画面的容器；结算时整块铺满全屏，比高舞台不被裁 */
+#arena {
+  position: fixed;
+  top: var(--ui-h);
+  left: 0; right: 0; bottom: 0;
+  z-index: 1;
+  overflow: hidden;
+  background: #050c16;
+  /* 不做 top 过渡：结算切全屏时 resize() 要立刻读到最终尺寸，过渡会读到中间值 */
+}
+#game { position: absolute; inset: 0; width: 100%; height: 100%; }
+body.result-mode #arena { top: 0; z-index: 60; }
+
+/* 界面带：整行实底，三栏栅格，开局由上滑入 */
+#uiBar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--ui-h);
+  z-index: 20;
+  display: grid;
+  grid-template-columns: var(--ui-side) minmax(0, 1fr) var(--ui-rank-w);
+  align-items: center;
+  column-gap: calc(18px * var(--ui-scale));
+  padding: 0 var(--arena-safe-x);
+  border-bottom: 3px solid var(--tv-cyan);
+  background:
+    linear-gradient(0deg, rgba(86, 232, 255, .045) 1px, transparent 1px) 0 0 / 100% 26px,
+    linear-gradient(90deg, rgba(86, 232, 255, .04) 1px, transparent 1px) 0 0 / 52px 100%,
+    linear-gradient(180deg, #0c1d30 0%, #091524 58%, #050c16 100%);
+  box-shadow: 0 20px 52px rgba(0, 0, 0, .78), 0 3px 0 rgba(86, 232, 255, .22);
+  pointer-events: none;
+  animation: barIntro .72s cubic-bezier(.16, .86, .24, 1) both;
+}
+.ui-deco { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.ui-energy { position: absolute; top: 0; left: 0; right: 0; height: 6px; background: rgba(86, 232, 255, .16); }
+.ui-energy i {
+  position: absolute; top: 0; left: -38%; width: 38%; height: 100%;
+  background: linear-gradient(90deg, transparent, #b8f7ff 45%, #ffffff 50%, #b8f7ff 55%, transparent);
+  box-shadow: 0 0 26px rgba(86, 232, 255, .95);
+  /* 扫光节奏由 JS 按体感速度倍率写 --energy-dur：慢速 5s、满速 1.3s。
+     这是已有装饰层的动效变化，不新增任何界面带信息项。 */
+  animation: energySweep var(--energy-dur, 3.6s) linear infinite;
+}
+.ui-scan { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(190, 235, 255, .024) 0 1px, transparent 1px 4px); }
+.ui-ruler {
+  position: absolute; left: var(--arena-safe-x); right: var(--arena-safe-x); bottom: 7px; height: 5px;
+  background: repeating-linear-gradient(90deg, rgba(86, 232, 255, .4) 0 2px, transparent 2px 30px);
+  opacity: .32;
+}
+.ui-seam {
+  position: absolute; bottom: -3px; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--tv-cyan) 10%, #e6fbff 50%, var(--tv-cyan) 90%, transparent);
+  box-shadow: 0 0 22px rgba(86, 232, 255, .75);
+}
+.ui-diamond {
+  position: absolute; bottom: 3px; left: 50%; width: 13px; height: 13px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #e6fbff; box-shadow: 0 0 18px var(--tv-cyan);
+}
+.ui-notch { position: absolute; bottom: 0; width: 30px; height: 14px; background: var(--tv-cyan); opacity: .55; }
+.ui-notch.left { left: 0; clip-path: polygon(0 0, 100% 100%, 0 100%); }
+.ui-notch.right { right: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+body.ui-boost .ui-energy { background: rgba(182, 255, 87, .35); animation: boostFlash .9s ease-out; }
+body.ui-boost .ui-seam { background: linear-gradient(90deg, transparent, var(--tv-lime) 10%, #f0ffd6 50%, var(--tv-lime) 90%, transparent); }
+body.ui-lastcall .ui-seam {
+  background: linear-gradient(90deg, transparent, #ff7a5c 10%, #ffd0b8 50%, #ff7a5c 90%, transparent);
+  animation: lastCallGlow 1s ease-in-out infinite;
+}
+body.ui-shake #uiBar .cam-box,
+body.ui-shake #uiBar #hud,
+body.ui-shake #uiBar .rank-block,
+body.ui-shake #uiBar .ui-deco { animation: uiShake .36s ease-out; }
+body.result-mode #uiBar { opacity: 0; pointer-events: none; transition: opacity .35s ease; }
+body.result-mode #uiBar #hud,
+body.result-mode #uiBar .cam-box { opacity: 0; pointer-events: none; }
+
+/* 镜像框：320×180（16:9），四角取景框 + 骨架叠加 */
+#uiBar .cam-box {
+  position: relative;
+  right: auto; bottom: auto;
+  width: var(--ui-cam-w);
+  height: calc(var(--ui-cam-w) * 0.5625);
+  border-radius: 2px;
+  border: 2px solid rgba(86, 232, 255, .55);
+  background: #040b14;
+  box-shadow: 0 0 0 6px rgba(86, 232, 255, .06), 0 0 30px rgba(86, 232, 255, .22), inset 0 0 44px rgba(86, 232, 255, .1);
+  opacity: 1;
+  transform: none;
+  /* 镜像框是局内唯一可点热区：点它＝展开信息层，等同遥控器 O 键。
+     不新增任何第 4 项视觉元素，界面带仍只有 3 项。 */
+  pointer-events: auto;
+  cursor: pointer;
+  transition: border-color .28s ease, box-shadow .28s ease, filter .28s ease;
+}
+#uiBar .cam-box::before { border-radius: 2px; box-shadow: inset 0 0 40px rgba(86, 232, 255, .14); }
+#uiBar .cam-box.live, #uiBar .cam-box.lost, #uiBar .cam-box.locked { opacity: 1; transform: none; }
+#uiBar .cam-box.lost { border-color: rgba(255, 120, 110, .5); filter: saturate(.55) brightness(.72); }
+#uiBar .cam-box.locked {
+  border-color: var(--tv-lime);
+  box-shadow: 0 0 0 6px rgba(182, 255, 87, .09), 0 0 40px rgba(182, 255, 87, .38), inset 0 0 44px rgba(182, 255, 87, .12);
+}
+#uiBar .cam-box #video, #uiBar .cam-box #skeleton, #uiBar .cam-box #skeleton2 {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+}
+#uiBar .cam-box #video { opacity: .78; filter: saturate(.78) contrast(1.14); }
+#uiBar .cam-box #skeleton { z-index: 2; }
+#uiBar .cam-box #skeleton2 {
+  z-index: 1;
+  /* 镜像框 2 的 video 是画进 canvas 的，所以整块画面透明度自己带 */
+  opacity: .82;
+  filter: saturate(.82) contrast(1.12);
+}
+#uiBar .cam-box .cam-frame { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+#uiBar .cam-box .cam-frame i { position: absolute; width: 22px; height: 22px; border: 3px solid var(--tv-cyan); opacity: .9; }
+#uiBar .cam-box .cam-frame i:nth-child(1) { top: 5px; left: 5px; border-right: 0; border-bottom: 0; }
+#uiBar .cam-box .cam-frame i:nth-child(2) { top: 5px; right: 5px; border-left: 0; border-bottom: 0; }
+#uiBar .cam-box .cam-frame i:nth-child(3) { bottom: 5px; left: 5px; border-right: 0; border-top: 0; }
+#uiBar .cam-box .cam-frame i:nth-child(4) { bottom: 5px; right: 5px; border-left: 0; border-top: 0; }
+#uiBar .cam-box .cam-rec {
+  top: 9px; right: 9px; z-index: 4; padding: 0; width: 14px; height: 14px;
+  border: 0; background: transparent; border-radius: 50%;
+}
+#uiBar .cam-box .cam-rec i {
+  width: 14px; height: 14px; border-radius: 50%; background: #ff4d6e;
+  animation: liveBlink 1.6s ease-in-out infinite;
+}
+#uiBar .cam-box .cam-label { opacity: 0; }
+
+/* 倒计时舱：保留 4px 左色条 + 渐变底（兼容既有视觉回归） */
+#uiBar #hud {
+  position: relative; top: auto; left: auto;
+  display: flex; justify-content: center; align-items: center;
+  height: calc(150px * var(--ui-scale));
+  padding: 0; gap: 0;
+  border: 0;
+  border-left: 4px solid var(--tv-lime);
+  border-radius: 0;
+  background-color: transparent;
+  background-image: linear-gradient(90deg, rgba(86, 232, 255, .10), rgba(86, 232, 255, .01) 62%, rgba(86, 232, 255, .10));
+  box-shadow: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+#uiBar #hud .stat {
+  min-width: 0; padding: 0 calc(24px * var(--ui-scale));
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  text-align: center; align-items: center; gap: 0;
+}
+#uiBar #hud .stat::after { display: none; }
+#uiBar #hud .stat .k {
+  font-size: calc(36px * var(--ui-scale)); font-weight: 700; letter-spacing: .28em;
+  color: rgba(198, 232, 248, .82); text-shadow: 0 0 14px rgba(86, 232, 255, .3);
+}
+#uiBar #hud .stat .v {
+  font-size: calc(120px * var(--ui-scale)); line-height: .98; font-weight: 900;
+  color: #d7f7ff; font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 38px rgba(86, 232, 255, .62), 0 0 10px rgba(86, 232, 255, .85);
+  transform-origin: center;
+}
+#uiBar #hud .stat .v.accent {
+  color: #d7f7ff;
+  text-shadow: 0 0 38px rgba(86, 232, 255, .62), 0 0 10px rgba(86, 232, 255, .85);
+}
+#uiBar #hud .stat .v.tick { animation: tickPop .28s ease-out; }
+#uiBar #hud .stat .v.last-call {
+  color: #ff9a72;
+  text-shadow: 0 0 42px rgba(255, 96, 58, .9), 0 0 12px rgba(255, 120, 80, .8);
+  animation: lastCallPulse 1s ease-in-out infinite;
+}
+
+/* 名次：只显示自己的名次，升降有闪光与箭头 */
+.rank-block {
+  position: relative;
+  display: flex; flex-direction: column; align-items: flex-end; justify-content: center;
+  height: calc(150px * var(--ui-scale));
+  padding-right: calc(8px * var(--ui-scale));
+  padding-left: calc(38px * var(--ui-scale));
+  border-right: 4px solid var(--tv-lime);
+  background-image: linear-gradient(270deg, rgba(182, 255, 87, .09), transparent 70%);
+}
+.rank-k { font-size: calc(36px * var(--ui-scale)); font-weight: 700; letter-spacing: .24em; color: rgba(198, 232, 248, .82); }
+.rank-v {
+  font-size: calc(96px * var(--ui-scale)); line-height: 1; font-weight: 900;
+  color: var(--tv-lime); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 34px rgba(182, 255, 87, .6), 0 0 8px rgba(182, 255, 87, .8);
+}
+.rank-total { font-size: calc(24px * var(--ui-scale)); color: rgba(190, 225, 240, .62); letter-spacing: .1em; }
+.rank-arrow {
+  position: absolute; left: calc(4px * var(--ui-scale)); top: 50%;
+  transform: translateY(-50%); font-size: calc(36px * var(--ui-scale)); font-weight: 900; opacity: 0;
+}
+.rank-block.rank-up .rank-v { animation: rankRise .6s ease-out; }
+.rank-block.rank-up .rank-arrow { color: var(--tv-lime); opacity: 1; animation: arrowUp .6s ease-out; }
+.rank-block.rank-down .rank-v { animation: rankFall .6s ease-out; color: #ff9a72; }
+.rank-block.rank-down .rank-arrow { color: #ff9a72; opacity: 1; animation: arrowDown .6s ease-out; }
+
+/* 暂停层：局内信息全部收在这里，按 O 淡入 */
+#pauseScrim {
+  position: fixed; inset: var(--ui-h) 0 0 0; z-index: 14;
+  display: flex; flex-direction: column; align-items: center;
+  padding-top: calc(22px * var(--ui-scale));
+  background: radial-gradient(ellipse at 50% 0%, rgba(6, 16, 30, .97), rgba(2, 6, 14, .95) 78%);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .28s ease, visibility .28s;
+}
+body.pause-open #pauseScrim { opacity: 1; visibility: visible; pointer-events: auto; }
+.pause-scrim-inner { display: flex; flex-direction: column; align-items: center; gap: 6px; color: #dff4ff; }
+.pause-kicker { font-size: calc(24px * var(--ui-scale)); letter-spacing: .28em; color: var(--tv-cyan); font-weight: 800; }
+.pause-scrim-inner strong { font-size: calc(44px * var(--ui-scale)); font-weight: 900; letter-spacing: .08em; }
+.pause-tip { font-size: calc(26px * var(--ui-scale)); color: rgba(200, 230, 245, .75); }
+
+#pauseStats {
+  position: fixed; top: calc(var(--ui-h) + 118px * var(--ui-scale)); left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: calc(14px * var(--ui-scale)); z-index: 30;
+  padding: calc(16px * var(--ui-scale)) calc(20px * var(--ui-scale));
+  border: 1px solid var(--tv-line); border-radius: 4px;
+  border-left: 4px solid var(--tv-cyan);
+  background: rgba(6, 16, 29, .97);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, .7);
+  opacity: 0; pointer-events: none; transition: opacity .28s ease;
+}
+body.pause-open #pauseStats { opacity: 1; pointer-events: auto; }
+#pauseStats .stat {
+  min-width: calc(120px * var(--ui-scale));
+  padding: calc(10px * var(--ui-scale)) calc(14px * var(--ui-scale));
+  border-radius: 3px; border: 1px solid var(--tv-line); background: rgba(12, 28, 46, .7);
+}
+#pauseStats .stat .k { font-size: calc(22px * var(--ui-scale)); color: var(--tv-dim); }
+#pauseStats .stat .v { font-size: calc(48px * var(--ui-scale)); color: #f2fbff; }
+#pauseStats .legacy-stat { display: none; }
+
+/* 局内隐藏所有非必要信息；暂停 / 结算时按状态恢复 */
+body.in-round #statusbar,
+body.in-round #buffs,
+body.in-round #muteBtn,
+body.in-round #padBar,
+body.in-round #hint,
+body.in-round #leaderboard,
+body.in-round #quickPlayBtn { opacity: 0; pointer-events: none; transition: opacity .26s ease; }
+/* 调试面板单独放行：用户要求局内仍能看到它（含展开/收起按钮），默认收起。
+   原来它和上面这些浮层一起被 opacity:0 藏掉，局内连入口都找不到。 */
+/* 常驻脱困按钮保持可点：异常时仍能一键进游戏，也兼容既有自动化用例 */
+body.in-round #quickPlayBtn { pointer-events: auto; z-index: 25; }
+
+/* 局内调试胶囊：可见、可点、默认收起
+   ------------------------------------------------------------
+   固定落在战场带左上角，在 #arena(z=1) 之上、#uiBar(z=20) 之下，
+   不侵入顶部 200px 界面带，界面带仍只保留倒计时 / 名次 / 镜像框三项。
+   展开时由 body.pause-open #tuning 接管：top 相同、z-index 提到 30，
+   所以胶囊是「就地长成抽屉」，位置不会跳动。 */
+body.in-round #tuning {
+  top: calc(var(--ui-h) + 14px * var(--ui-scale));
+  left: calc(var(--arena-safe-x) * 0.24);
+  z-index: 16;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity .26s ease, border-color .28s ease, box-shadow .28s ease;
+}
+/* 3 米观看：旧版标题 12px、按钮 10px 等于看不见，收起态单独放大 */
+body.in-round #tuning.collapsed .tuning-head {
+  padding: calc(12px * var(--ui-scale)) calc(18px * var(--ui-scale));
+  gap: calc(12px * var(--ui-scale));
+  font-size: calc(22px * var(--ui-scale));
+}
+body.in-round #tuning.collapsed .tuning-title { font-size: calc(22px * var(--ui-scale)); }
+body.in-round #tuning.collapsed .tuning-mark { font-size: calc(14px * var(--ui-scale)); }
+body.in-round #tuning.collapsed .tuning-head .keycap { font-size: calc(16px * var(--ui-scale)); }
+body.in-round #tuning.collapsed .tuning-head button {
+  padding: calc(7px * var(--ui-scale)) calc(16px * var(--ui-scale));
+  font-size: calc(18px * var(--ui-scale));
+}
+body.in-round.pause-open #statusbar,
+body.in-round.pause-open #buffs,
+body.in-round.pause-open #muteBtn,
+body.in-round.pause-open #padBar,
+body.in-round.pause-open #hint,
+body.in-round.pause-open #quickPlayBtn { opacity: 0; pointer-events: none; }
+/* 暂停层只放行「设置抽屉 + 实时榜 + 数据条」三块。
+   状态栏 / 道具 chip / 按键条原位都在界面带高度内，放开会压住倒计时与名次；
+   道具剩余时长改由数据条内的 #pauseBuff 显示。 */
+body.in-round.pause-open #tuning,
+body.in-round.pause-open #leaderboard { opacity: 1; pointer-events: auto; z-index: 30; }
+
+/* 暂停层字号：3 米可读，抽屉加宽并允许滚动。
+   抽屉属于「战场带内的信息层」，顶部必须落在界面带下沿之外，
+   否则会和镜像框 / 倒计时叠在一起，破坏界面带与战场带的物理分区。 */
+body.pause-open #tuning {
+  width: 420px;
+  overflow-y: auto;
+  top: calc(var(--ui-h) + 14px * var(--ui-scale));
+  max-height: calc(100vh - var(--ui-h) - 28px * var(--ui-scale));
+  scrollbar-width: thin;
+  scrollbar-color: rgba(86, 232, 255, .6) rgba(86, 232, 255, .08);
+}
+/* 显式滚动条：内容装不下时给出明确的「下面还有」视觉线索，
+   不再像被画面底边直接裁掉。 */
+body.pause-open #tuning::-webkit-scrollbar { width: calc(10px * var(--ui-scale)); }
+body.pause-open #tuning::-webkit-scrollbar-track { background: rgba(86, 232, 255, .08); }
+body.pause-open #tuning::-webkit-scrollbar-thumb {
+  background: rgba(86, 232, 255, .55); border-radius: 6px;
+  border: 2px solid rgba(6, 16, 29, .9);
+}
+/* 压缩纵向密度，1080p 下尽量一屏装完；只改间距，不动功能与 DOM */
+body.pause-open #tuning .tuning-body {
+  padding: calc(10px * var(--ui-scale)) 14px calc(12px * var(--ui-scale));
+}
+body.pause-open #tuning .tuning-body .row {
+  margin-bottom: calc(6px * var(--ui-scale)); gap: 3px 8px;
+}
+body.pause-open #tuning .tuning-title { font-size: calc(26px * var(--ui-scale)); }
+body.pause-open #tuning .row .k,
+body.pause-open #tuning .row .v,
+body.pause-open #tuning .round-mode-row .k,
+body.pause-open #tuning .tuning-live,
+body.pause-open #tuning .pose-readout,
+body.pause-open #tuning .pose-diag-head,
+body.pause-open #tuning .ai-sep { font-size: calc(20px * var(--ui-scale)); }
+body.pause-open #tuning .tuning-note { font-size: calc(16px * var(--ui-scale)); line-height: 1.5; }
+body.pause-open #tuning .pose-row .k,
+body.pause-open #tuning .hand-btns button,
+body.pause-open #tuning .pose-btns button { font-size: calc(18px * var(--ui-scale)); }
+body.pause-open .leaderboard { width: 340px; font-size: calc(24px * var(--ui-scale)); }
+body.pause-open .lb-row { font-size: calc(24px * var(--ui-scale)); }
+/* 长篇调参说明是桌面调试用的正文，3 米电视上只会糊成一片：
+   暂停层隐藏它，DOM 与 textContent 仍保留，不影响回归读取 */
+body.pause-open #tuning .tuning-note { display: none; }
+#pauseStats { flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 40px); }
+#pauseStats .stat .k { font-size: calc(28px * var(--ui-scale)); }
+.pause-buff {
+  width: 100%; text-align: center;
+  font-size: calc(26px * var(--ui-scale)); font-weight: 700; letter-spacing: .06em;
+  color: var(--tv-cyan);
+}
+
+/* 结算页关键数字同样按 3 米标准放大（几何与舞台参数不变）。
+   注意：这里整体压矮——标题带 + 成绩牌越高，蛇能长的地方就越少。 */
+#resultOverlay #resultTitle { font-size: calc(36px * var(--ui-scale)); }
+.result-stats { font-size: calc(15px * var(--ui-scale)); }
+#resultOverlay .result-headline {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+}
+.result-row .r-rank { font-size: calc(19px * var(--ui-scale)); }
+.result-row .r-len { font-size: calc(23px * var(--ui-scale)); }
+.result-row .r-name { font-size: calc(15px * var(--ui-scale)); }
+.result-row .r-extra { font-size: calc(11px * var(--ui-scale)); }
+#againBtn { font-size: calc(22px * var(--ui-scale)); width: auto; padding: 10px 30px; }
+
+/* 动态效果：开局滑入 / 能量扫光 / 秒脉冲 / 最后 10 秒 / 名次升降 / 识别反馈 / 震动 */
+@keyframes barIntro { from { transform: translateY(-100%); filter: brightness(2.1); } to { transform: none; filter: brightness(1); } }
+@keyframes energySweep { from { left: -38%; } to { left: 108%; } }
+@keyframes tickPop { 0% { transform: scale(1); } 38% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes lastCallPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: .84; } }
+@keyframes lastCallGlow { 0%, 100% { opacity: .6; } 50% { opacity: 1; } }
+@keyframes rankRise { 0% { transform: translateY(16px); opacity: .35; } 60% { transform: translateY(-6px); } 100% { transform: none; opacity: 1; } }
+@keyframes rankFall { 0% { transform: translateY(-16px); opacity: .35; } 60% { transform: translateY(6px); } 100% { transform: none; opacity: 1; } }
+@keyframes arrowUp { from { transform: translateY(14px); opacity: 0; } to { transform: translateY(-50%); opacity: 1; } }
+@keyframes arrowDown { from { transform: translateY(-14px); opacity: 0; } to { transform: translateY(-50%); opacity: 1; } }
+@keyframes liveBlink { 0%, 100% { opacity: 1; box-shadow: 0 0 12px #ff4d6e; } 50% { opacity: .28; box-shadow: 0 0 2px #ff4d6e; } }
+@keyframes uiShake { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+@keyframes boostFlash { 0% { filter: brightness(2.4); } 100% { filter: brightness(1); } }
+
+/* 屏幕比例适配：整套界面按 --ui-scale 等比缩放 */
+@media (max-height: 820px) { :root { --ui-scale: .74; } }
+@media (max-width: 1100px) { :root { --ui-scale: .68; } }
+@media (max-width: 720px) { :root { --ui-scale: .5; } #uiBar { padding: 0 14px; } }
+@media (max-width: 900px) {
+  #overlay .rules li.li-arena { display: none; }
+  .rank-arrow { display: none; }
+  body.pause-open #tuning { width: 320px; }
+  #pauseStats { flex-wrap: nowrap; }
+  .pause-buff { font-size: 20px; }
+}
+/* ---- 距离 → 速度：局内即时反馈 ------------------------------------------
+   倍率数字与进度条都在「镜像框」内部，扫光节奏用已有的 .ui-energy 装饰层，
+   因此界面带仍然只有倒计时 / 我的名次 / 镜像框三项，不新增第 4 项常驻信息。
+   战场画布一行不改，画面效果保持原样。 */
+#uiBar .cam-box .cam-speed {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  z-index: 4;
+  display: flex; align-items: center;
+  gap: calc(10px * var(--ui-scale));
+  height: calc(42px * var(--ui-scale));
+  padding: 0 calc(12px * var(--ui-scale));
+  background: linear-gradient(0deg, rgba(2, 10, 20, .95), rgba(2, 10, 20, .64) 68%, transparent);
+  /* 不抢镜像框的点击热区：点它依旧是展开信息层 */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .26s ease, box-shadow .26s ease;
+}
+body.in-round #uiBar .cam-box .cam-speed { opacity: 1; }
+body.result-mode #uiBar .cam-box .cam-speed { opacity: 0; }
+
+#uiBar .cam-box .cam-speed-val {
+  flex: 0 0 auto;
+  min-width: calc(92px * var(--ui-scale));
+  font-size: calc(26px * var(--ui-scale));
+  font-weight: 800;
+  letter-spacing: .02em;
+  color: #dcf8ff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 14px rgba(86, 232, 255, .85), 0 2px 4px #000;
+}
+#uiBar .cam-box .cam-speed-track {
+  position: relative; flex: 1 1 auto;
+  height: calc(10px * var(--ui-scale));
+  border: 1px solid rgba(86, 232, 255, .4);
+  background: rgba(6, 22, 36, .86);
+  overflow: hidden;
+}
+#uiBar .cam-box .cam-speed-track i {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  width: 50%;
+  background: linear-gradient(90deg, #2f9fd6, #56e8ff 55%, #b6ff57);
+  box-shadow: 0 0 calc(14px * var(--ui-scale)) rgba(86, 232, 255, .9);
+  transition: width .12s linear;
+}
+
+/* 速度档位只改反馈条自身的颜色，不碰 #cam.locked / #cam.lost 的识别状态边框 */
+#uiBar .cam-box.speed-fast .cam-speed {
+  box-shadow: inset 0 1px 0 rgba(182, 255, 87, .9), 0 -8px 24px rgba(182, 255, 87, .22);
+}
+#uiBar .cam-box.speed-fast .cam-speed-val {
+  color: #eaffc8;
+  text-shadow: 0 0 16px rgba(182, 255, 87, .9), 0 2px 4px #000;
+}
+#uiBar .cam-box.speed-slow .cam-speed {
+  box-shadow: inset 0 1px 0 rgba(86, 232, 255, .32);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #uiBar, .ui-energy i, #uiBar .cam-box .cam-rec i { animation: none; }
+  #uiBar .cam-box .cam-speed-track i { transition: none; }
+}
+
+/* ============================================================
+   DUAL PLAYER · 双人分屏
+   界面带换成五栏：镜像框1 | 名次1 | 倒计时 | 名次2 | 镜像框2。
+   战场带不切 DOM，由 main.js 在画布内部左右各画一台相机；
+   中间的竖接缝也在画布上画，所以这里只管界面带。
+   ============================================================ */
+/* 单人模式：第二套节点整体隐藏（!important 顶掉 #uiBar 里的 display 设定） */
+.split-only { display: none !important; }
+
+/* 单人 / 双人共用同一批节点，用 grid-area 显式定位，DOM 顺序不必改 */
+#uiBar { grid-template-areas: "cam hud rank"; }
+#uiBar #cam { grid-area: cam; }
+#uiBar #hud { grid-area: hud; }
+#uiBar #rankBlock { grid-area: rank; }
+#uiBar #rankBlock2 { grid-area: rank2; }
+#uiBar #cam2 { grid-area: cam2; }
+
+body[data-split="2"] .split-only { display: flex !important; }
+body[data-split="2"] #uiBar #cam2.split-only { display: block !important; }
+
+/* 五栏栅格：两侧镜像框贴边，名次靠着中间倒计时，视线从两边向中间收 */
+body[data-split="2"] {
+  /* 双人时镜像框与名次都给倒计时让一点宽度，1366 宽屏也不会挤爆 */
+  --ui-cam-w: calc(268px * var(--ui-scale));
+  --ui-rank-w: calc(250px * var(--ui-scale));
+}
+body[data-split="2"] #uiBar {
+  grid-template-columns:
+    var(--ui-cam-w)
+    var(--ui-rank-w)
+    minmax(0, 1fr)
+    var(--ui-rank-w)
+    var(--ui-cam-w);
+  grid-template-areas: "cam rank hud rank2 cam2";
+  column-gap: calc(14px * var(--ui-scale));
+  padding: 0 calc(56px * var(--ui-scale));
+}
+
+/* 双人模式的名次块更紧凑：字号降一档，仍然一眼能读 */
+body[data-split="2"] #uiBar .rank-block {
+  height: calc(150px * var(--ui-scale));
+  padding-right: calc(4px * var(--ui-scale));
+  padding-left: calc(20px * var(--ui-scale));
+}
+body[data-split="2"] #uiBar .rank-block .rank-k { font-size: calc(24px * var(--ui-scale)); letter-spacing: .18em; }
+body[data-split="2"] #uiBar .rank-block .rank-v { font-size: calc(66px * var(--ui-scale)); }
+body[data-split="2"] #uiBar .rank-block .rank-total { font-size: calc(19px * var(--ui-scale)); }
+
+/* 镜像框 2 用品红系，和玩家 2 的蛇身颜色呼应 */
+body[data-split="2"] #uiBar #cam2 {
+  border-color: rgba(255, 122, 217, .55);
+  box-shadow: 0 0 0 6px rgba(255, 122, 217, .06), 0 0 30px rgba(255, 122, 217, .2), inset 0 0 44px rgba(255, 122, 217, .1);
+}
+body[data-split="2"] #uiBar #cam2.locked {
+  border-color: #FF7AD9;
+  box-shadow: 0 0 0 6px rgba(255, 122, 217, .1), 0 0 40px rgba(255, 122, 217, .42), inset 0 0 44px rgba(255, 122, 217, .14);
+}
+body[data-split="2"] #uiBar #cam2 .cam-frame i { border-color: #FF7AD9; }
+
+/* 双人模式倒计时窄一点：字号略降，仍是全屏最醒目的数字 */
+body[data-split="2"] #uiBar #hud .stat .k { font-size: calc(28px * var(--ui-scale)); }
+body[data-split="2"] #uiBar #hud .stat .v { font-size: calc(96px * var(--ui-scale)); }
+body[data-split="2"] #uiBar #hud .stat { padding: 0 calc(14px * var(--ui-scale)); }
+
+/* ---- 举手准备：镜像框底部一条进度条，满格就出发 ---- */
+.cam-ready {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 0 13px;
+  background: linear-gradient(180deg, rgba(4, 10, 20, 0), rgba(4, 10, 20, .88));
+  pointer-events: none;
+  text-align: center;
+}
+body.ready-phase .cam-ready { display: flex; }
+.cam-ready span {
+  font-size: calc(15px * var(--ui-scale));
+  font-weight: 900;
+  letter-spacing: .2em;
+  color: #eaffd0;
+  text-shadow: 0 0 14px rgba(182, 255, 87, .65);
+}
+/* 已经举手够久：文字转金色，和进度条一起给出「准备好了」的确认 */
+body.ready-phase .cam-box.ready-done .cam-ready span { color: #FFE07A; text-shadow: 0 0 16px rgba(255, 224, 122, .8); }
+.cam-ready i {
+  display: block;
+  width: 66%;
+  height: 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, .16);
+  overflow: hidden;
+}
+.cam-ready b {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #d9ff7a, #4fd98a);
+  box-shadow: 0 0 12px rgba(110, 240, 130, .9);
+  transition: width .08s linear;
+}
+
+/* 窄屏（笔记本 / 浏览器小窗口）保底：五栏挤不下时同步收窄各栏，
+   否则两侧镜像框会被推到屏幕外，看起来像"双人模式坏了" */
+@media (max-width: 1500px) {
+  body[data-split="2"] {
+    --ui-cam-w: calc(212px * var(--ui-scale));
+    --ui-rank-w: calc(184px * var(--ui-scale));
+  }
+  body[data-split="2"] #uiBar {
+    padding: 0 calc(18px * var(--ui-scale));
+    column-gap: calc(8px * var(--ui-scale));
+  }
+  body[data-split="2"] #uiBar .rank-block .rank-k { font-size: calc(19px * var(--ui-scale)); }
+  body[data-split="2"] #uiBar .rank-block .rank-v { font-size: calc(48px * var(--ui-scale)); }
+  body[data-split="2"] #uiBar .rank-block .rank-total { font-size: calc(15px * var(--ui-scale)); }
+  body[data-split="2"] #uiBar #hud .stat .k { font-size: calc(22px * var(--ui-scale)); }
+  body[data-split="2"] #uiBar #hud .stat .v { font-size: calc(76px * var(--ui-scale)); }
+}
+
+/* ---------------- 分屏玩家徽标 ----------------
+   标在镜像框左上角。原生 canvas 角标会被左上角的设置浮动条盖住，
+   改到 DOM 层就完全可控：1P 绿、2P 品红，和两条蛇的配色一致。 */
+.cam-tag {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  z-index: 5;
+  display: none;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: rgba(4, 10, 20, 0.82);
+  border: 1px solid rgba(182, 255, 87, 0.62);
+  color: #b6ff57;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  line-height: 1;
+}
+body[data-split="2"] .cam-tag { display: block; }
+#cam2 .cam-tag {
+  border-color: rgba(255, 122, 217, 0.62);
+  color: #ff7ad9;
+}
+
+/* ---------------- 手机紧凑布局（竖屏 或 横屏） ----------------
+   三栏的固定宽度加起来（170+150+padding）远超手机的屏宽，
+   实测竖屏倒计时舱被压成 24px 一条缝，只剩个"2:00"的残影。
+   这里按「倒计时优先」重排：镜像框只留够看清自己，名次只留数字，
+   名字 / 总数 / 升降箭头这类补充信息直接收掉。
+
+   判定条件与 js/config.js 的 view.phoneBreakCss(620) 完全一致：
+   · 竖屏看宽度（≤620）；
+   · 横屏看高度（≤620）—— 844×390 的 innerWidth 是 844，按宽度判会把手机当平板；
+   · 横屏那支再加 max-width:1000，避免把桌面窗口拉成 1400×500 也判成手机。
+   两方向共用同一套紧凑数值，横屏的差异值在下面单独覆盖。 */
+@media (max-width: 620px), (max-height: 620px) and (max-width: 1000px) {
+  :root {
+    --ui-scale: .42;
+    --ui-h: 92px;
+    --ui-cam-w: 96px;
+    --ui-side: 96px;
+    --ui-rank-w: 106px;
+    /* 横屏时刘海在左右两侧：留够安全区，否则镜像框会被切掉一角 */
+    --arena-safe-x: max(10px, env(safe-area-inset-left), env(safe-area-inset-right));
+  }
+  #uiBar { padding: 0 var(--arena-safe-x); column-gap: 8px; }
+  #uiBar #hud { height: 64px; border-left-width: 3px; }
+  #uiBar #hud .stat { padding: 0 6px; }
+  #uiBar #hud .stat .k { font-size: 11px; letter-spacing: .1em; }
+  #uiBar #hud .stat .v { font-size: 44px; }
+  .rank-block { height: 64px; padding-left: 6px; padding-right: 4px; border-right-width: 3px; }
+  .rank-k { font-size: 10px; letter-spacing: .04em; line-height: 1.25; margin-bottom: 3px; }
+  /* "6 / 8" 这种带空格的写法在 106px 的栏里会顶到右边缘被裁掉，
+     收到 26px 并去掉字距，88px 左右刚好放下 */
+  .rank-v { font-size: 26px; letter-spacing: -.02em; line-height: 1.1; }
+  .rank-total { display: none; }
+  .rank-arrow { display: none; }
+
+  /* 双人五栏在手机宽度里必须重新分配：默认的 268/250 是按 --ui-scale 缩的，
+     390px 宽下两侧加中间直接溢出。竖屏用「镜像框看清人影、名次只留个位数」的窄档。 */
+  body[data-split="2"] { --ui-cam-w: 64px; --ui-rank-w: 68px; }
+  body[data-split="2"] #uiBar { padding: 0 var(--arena-safe-x); column-gap: 6px; }
+  body[data-split="2"] #uiBar .rank-block { height: 64px; padding-left: 4px; padding-right: 2px; }
+  body[data-split="2"] #uiBar .rank-block .rank-k { font-size: 9px; }
+  body[data-split="2"] #uiBar .rank-block .rank-v { font-size: 22px; }
+  body[data-split="2"] #uiBar #hud .stat .k { font-size: 9px; }
+  body[data-split="2"] #uiBar #hud .stat .v { font-size: 34px; }
+}
+
+/* 手机上再补两件事：
+   1) 锁定触摸手势 —— 否则手指滑动会连带滚动 / 缩放页面，滑到一半页面跳了；
+   2) 设置浮动条在手机宽度里占掉八成屏幕。折叠态缩到 9px 半透明，
+      展开态则铺满整宽并允许内部滚动（手机上确实要调参时也能用）。
+   条件同上：竖屏看宽、横屏看高，旋转后这批规则一起生效。 */
+@media (max-width: 620px), (max-height: 620px) and (max-width: 1000px) {
+  #arena, #game { touch-action: none; }
+  #tuning { top: calc(var(--safe) + 6px); left: 6px; right: 6px; width: auto; max-width: none; }
+  #tuning.collapsed {
+    left: 6px; right: auto; width: auto;
+    opacity: .55;
+  }
+  #tuning .tuning-head { padding: 5px 8px; gap: 5px; font-size: 9px; }
+  #tuning .tuning-head .keycap { font-size: 8px; padding: 0 3px; }
+  #tuning:not(.collapsed) { opacity: 1; max-height: calc(100vh - var(--safe) - 12px); overflow-y: auto; }
+}
+
+/* 手机标题画面：没有键盘，就不该出现任何按键提示。
+   顺便把按钮左侧的 A / X 徽标也去掉，把空间还给文字。
+   底部那条常驻按键条（← ↑ ↓ →）同理 —— 触摸屏上它只是挡住战场。 */
+@media (max-width: 620px), (max-height: 620px) and (max-width: 1000px) {
+  .pad-hints { display: none; }
+  .pad-bar { display: none; }
+  .menu-buttons button[data-key]::before { display: none; }
+  .fineprint { font-size: 10px; line-height: 1.65; }
+  .ps-btn span { font-size: 11px; }
+}
+
+/* ---------------- 手机横屏（矮视口） ----------------
+   844×390 这类视口里，竖屏那套 92px 界面带会吃掉 24% 的高度，
+   战场只剩 298px；而横屏本来就有 800+ px 的宽度可以横向铺开。
+   所以横屏不照抄竖屏尺寸，而是重新分配：
+   界面带压到 74px、镜像框 116×65、倒计时 32px，把高度尽量留给战场。
+   与 js/config.js 联动：界面带变矮 → 画布变高 → viewRectFor 按新短边收敛视野，
+   所以旋转后蛇的视觉大小不变。 */
+@media (max-height: 620px) and (max-width: 1000px) and (orientation: landscape) {
+  :root {
+    --ui-scale: .38;
+    --ui-h: 74px;
+    --ui-cam-w: 116px;
+    --ui-side: 116px;
+    --ui-rank-w: 104px;
+  }
+  #uiBar { column-gap: 12px; }
+  #uiBar #hud { height: 52px; }
+  #uiBar #hud .stat { padding: 0 8px; }
+  #uiBar #hud .stat .k { font-size: 9px; }
+  #uiBar #hud .stat .v { font-size: 32px; }
+  .rank-block { height: 52px; }
+  .rank-k { font-size: 9px; }
+  .rank-v { font-size: 24px; }
+
+  /* 双人：844px 的宽度够用，镜像框可以比竖屏大一圈，倒计时也不会被挤 */
+  body[data-split="2"] { --ui-cam-w: 120px; --ui-rank-w: 86px; }
+  body[data-split="2"] #uiBar { column-gap: 10px; }
+  body[data-split="2"] #uiBar .rank-block { height: 52px; }
+  body[data-split="2"] #uiBar .rank-block .rank-v { font-size: 22px; }
+  body[data-split="2"] #uiBar #hud .stat .v { font-size: 30px; }
+
+  /* 标题画面：390px 高里要塞下「标题 + 人数 + 开始按钮」，
+     品牌条 / 细则 / 键位提示在横屏全部收掉，否则必须滚动才能看到开始。
+     两个主按钮改成一排，省掉一整行高度。 */
+  #overlay { padding: 10px 16px; }
+  #overlay .panel.title-screen { width: min(760px, 100%); }
+  .title-hero { padding: 10px 20px 4px; }
+  #overlay .panel.title-screen h1 { font-size: clamp(24px, 3.4vw, 34px); }
+  .title-sub { margin: 3px 0 6px !important; font-size: 11px !important; letter-spacing: .16em !important; }
+  .title-hero .brand-line { display: none; }
+  .title-hero .mode-badges { gap: 5px; }
+  .mode-badges span { padding: 3px 7px; font-size: 9.5px; }
+  .player-select { padding: 6px 20px 0; }
+  .ps-label { margin-bottom: 5px; }
+  .ps-btn { padding: 8px 10px 9px; }
+  .ps-btn b { font-size: 16px; }
+  #overlay .panel.title-screen .panel-actions { padding: 8px 20px 10px; gap: 5px; }
+  #overlay .panel.title-screen .menu-buttons { grid-template-columns: 1fr 1fr; gap: 6px; }
+  #overlay .panel.title-screen #startBtn,
+  #overlay .panel.title-screen #kbBtn { padding: 9px 10px; font-size: 12px; }
+  #overlay .panel.title-screen .fineprint,
+  #overlay .panel.title-screen .pad-hints { display: none; }
+  .rules-details { margin: 4px 20px 0; }
+  .rules-details > summary { padding: 6px 2px; font-size: 11px; }
+  .asset-state { margin-top: 3px; font-size: 10px; }
+}
+
+/* ---------------- 姿态资源预取状态 ----------------
+   标题画面主按钮下方的一行小字。8MB 的 WASM + 模型在后台预取，
+   有进度条文字玩家才知道"在准备"，而不是以为点了没反应。 */
+.asset-state {
+  margin: 6px 0 0;
+  text-align: center;                   /* 和上下两行按钮 / 说明文字保持同一条中轴 */
+  font-size: 11.5px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  color: rgba(176, 219, 250, 0.92);
+  font-variant-numeric: tabular-nums;   /* 百分比跳动时数字不抖 */
+  transition: color 0.35s ease;
+}
+.asset-state.ok { color: rgba(182, 255, 87, 0.92); }
+.asset-state.hidden { display: none; }
